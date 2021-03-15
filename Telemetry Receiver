@@ -1,0 +1,96 @@
+/*
+  Radio Telemetry for Robot
+  Receiver Sketch
+  Tom Goff 2021
+
+  433 MHz RF Module Transmitter Code credit to:
+  DroneBot Workshop 2018
+*/
+ 
+// Include RadioHead Amplitude Shift Keying Library
+#include <RH_ASK.h>
+// Include dependant SPI Library 
+#include <SPI.h> 
+ 
+// Define output strings
+ 
+String str_humid;
+String str_temp;
+String str_volts;
+String str_mag;
+String str_out;
+String str_sub1;
+String str_sub2;
+
+ 
+// Create Amplitude Shift Keying Object
+RH_ASK rf_driver;
+ 
+void setup()
+{
+    // Initialize ASK Object
+    rf_driver.init();
+    // Setup Serial Monitor
+    Serial.begin(9600);
+}
+ 
+void loop()
+{
+    // Set buffer to size of expected message
+    uint8_t buf[23];
+    uint8_t buflen = sizeof(buf);
+    // Check if received packet is correct size
+    if (rf_driver.recv(buf, &buflen))
+    {
+      
+      // Message received with valid checksum
+      // Get values from string
+      
+      // Convert received data into string
+      str_out = String((char*)buf);  
+      
+      // Split string into two values and extract volts
+      for (int i = 0; i < str_out.length(); i++) {
+      if (str_out.substring(i, i+1) == ",") {
+      str_volts = str_out.substring(0, i);
+      str_sub1 = str_out.substring(i+1);
+      break;
+      }
+      }
+
+      // Split string into two again and extract temperature
+      for (int i = 0; i < str_sub1.length(); i++) {
+      if (str_out.substring(i, i+1) == ",") {
+      str_temp = str_sub1.substring(0, i);
+      str_sub2 = str_sub1.substring(i+1);
+      break;
+      }     
+    }
+      // Split String into two again and extract humidity and direction
+      for (int i = 0; i < str_sub2.length(); i++) {
+      if (str_out.substring(i, i+1) == ",") {
+      str_humid = str_sub2.substring(0, i);
+      str_mag = str_sub2.substring(i+2);
+      break;
+      }     
+    }
+  
+      delay(500);
+      // Print values to Serial Monitor
+      //Serial.println(str_sub);
+      Serial.print("Voltage: ");
+      Serial.print(str_volts);
+      Serial.print ("V");
+      Serial.print("  - Temperature: ");
+      Serial.print(str_temp);
+      Serial.print("*C");
+      Serial.print("  - Humidity: ");
+      Serial.print(str_humid);
+      Serial.println("%");
+      Serial.print("  - Direction: ");
+      Serial.print(str_mag);
+      Serial.println("degrees");
+               
+    }
+
+}

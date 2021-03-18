@@ -1,0 +1,121 @@
+/*
+  Radio Telemetry for Robot
+  Transmitter Sketch
+  Tom Goff 2021
+
+  433 MHz RF Module Transmitter Code credit to:
+  DroneBot Workshop 2018
+*/
+
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_HMC5883_U.h>
+
+/* Assign a unique ID to this sensor at the same time */
+Adafruit_HMC5883_Unified mag = Adafruit_HMC5883_Unified(12345);
+
+
+// Include RadioHead Lirary
+#include <RH_ASK.h>
+// Include dependant SPI Library 
+#include <SPI.h> 
+ 
+// Include DHT Libraries from Adafruit
+// Dependant upon Adafruit_Sensors Library
+#include "DHT.h";
+ 
+// Define Constants
+ 
+#define DHTPIN 7       // DHT-22 Output Pin connection
+#define DHTTYPE DHT22   // DHT Type is DHT 22 (AM2302)
+ 
+// Define Variables
+float hum;    // Stores humidity value in percent
+float temp;   // Stores temperature value in Celcius
+float volts = 0;        // value read from the pot 
+
+// Define output strings
+String str_humid;
+String str_temp;
+String str_out;
+String str_volts;
+String str_mag;
+ 
+// Create Amplitude Shift Keying Object
+RH_ASK rf_driver;
+ 
+// Initialize DHT sensor for normal 16mhz Arduino
+DHT dht(DHTPIN, DHTTYPE);
+
+
+void setup() {
+ 
+  // Initialize ASK Object
+  rf_driver.init();
+  // Start DHT Sensor
+  dht.begin();
+     Serial.begin(9600);
+    Serial.println ("Hello");
+
+      if(!mag.begin())
+  {
+    /* There was a problem detecting the HMC5883 ... check your connections */
+    Serial.println("Ooops, no HMC5883 detected ... Check your wiring!");
+    while(1);
+  }
+}
+ 
+void loop()
+{
+ 
+  delay(2000);  // Delay so sensors can stabalize
+
+
+  sensors_event_t event; 
+  mag.getEvent(&event);
+  
+  float heading = atan2((event.magnetic.y+20), (event.magnetic.x+10));
+ 
+  // Correct for when signs are reversed.
+  if(heading < 0) 
+    heading += 2*PI;
+    
+  // Check for wrap due to addition of declination.
+  if(heading > 2*PI)
+    heading -= 2*PI;
+   
+    // Convert radians to degrees for readability.
+    float headingDegrees = heading * 180/M_PI;
+   
+    hum = dht.readHumidity();  // Get Humidity value
+    temp= dht.readTemperature();  // Get Temperature value
+
+    int sensorValue = analogRead(A0);
+    // map it to the range of the analog out:
+    float volts = sensorValue *(10.0/1023.0);
+ 
+    // Convert Humidity to string
+    str_humid = String(hum);
+    
+    // Convert Temperature to string
+    str_temp = String(temp);
+
+    //Convert Voltage to string
+    str_volts = String(volts);
+
+    //Convert heading to string
+    str_mag = String(headingDegrees);
+ 
+    // Combine Voltage, Humidity, Temperature and direction
+    str_out = str_volts + "," + str_temp + "," + str_humid + "," + str_mag;
+    
+    // print output to serial monitor for fault finding
+    Serial.println (str_out);
+    
+    // Compose output character
+    static char *msg = str_out.c_str();
+    
+    rf_driver.send((uint8_t *)msg, strlen(msg));
+    rf_driver.waitPacketSent();
+  
+}
